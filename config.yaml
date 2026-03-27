@@ -1,5 +1,5 @@
 device:
-  address: "F0:27:3C:1A:8B:C3"
+  address: "6F:E3:D9:1A:19:CA"
   auto_reconnect: true
   reconnect_delay: 2.0
   mtu: 2048
@@ -14,7 +14,7 @@ panels:
   layout:
     columns: 1
     rows: 1
-  list: ["F0:27:3C:1A:8B:C3"]
+  list: ["6F:E3:D9:1A:19:CA"]
 
 display:
   frame_interval: 0.05
