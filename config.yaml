@@ -12,9 +12,17 @@ panels:
   tile_width: 32
   tile_height: 32
   layout:
-    columns: 1
+    columns: 2
     rows: 1
-  list: ["6F:E3:D9:1A:19:CA"]
+  list: 
+    - name: left
+      address: "6F:E3:D9:1A:19:CA"
+      grid_x: 0
+      grid_y: 0
+    - name: right
+      address: "76:BF:38:1E:71:88"
+      grid_x: 1
+      grid_y: 0
 
 display:
   frame_interval: 0.05
