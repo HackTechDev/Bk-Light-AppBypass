@@ -4,7 +4,7 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
-MAC_ADDRESS = "76:BF:38:1E:71:88"
+MAC_ADDRESS = "6F:E3:D9:1A:19:CA"
 W, H = 32, 32
 
 def rain_color(brightness):
