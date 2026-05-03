@@ -20,7 +20,7 @@ W, H = 32, 32
 NB = len(MAC_PANELS)
 TOTAL_W = W * NB  # 128 px
 
-TEXT = "ILARD HACKLAB"
+TEXT = "ILARD HACKLAB GRAOULUG"
 COLOR = (0, 200, 255)    # cyan
 BACKGROUND = (0, 0, 0)
 FONT_NAME = "aldopc"
