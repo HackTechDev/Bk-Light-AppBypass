@@ -6,44 +6,76 @@ import time
 
 PROJECT_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# Entrees : (label,) = en-tete categorie ; (label, fichier, desc) = demo
+# Entrees : (label,) = en-tete categorie
+#           (label, fichier, desc, controles) = demo
+#   controles = "" si aucune interaction clavier
 ENTRIES = [
     ("JEUX INTERACTIFS",),
-    ("Pong",            "pong4panels.py",      "Joueur (cyan) vs IA (orange), balle acceleree"),
-    ("Snake",           "snake4panels.py",      "Serpent 64x16 cellules, acceleration progressive"),
-    ("Breakout",        "breakout4panels.py",   "Casse-briques, 3 rangees, vies, acceleration"),
-    ("Platformer",      "platform4panels.py",   "Saut, 5 plateformes, 12 collectibles"),
+    ("Pong",            "pong4panels.py",
+     "Joueur (cyan) vs IA (orange), balle acceleree",
+     "[Haut/Bas] Raquette (maintenu)   [Echap] Quitter"),
+    ("Snake",           "snake4panels.py",
+     "Serpent 64x16 cellules, acceleration progressive",
+     "[Fleches] Changer de direction   [Echap] Quitter"),
+    ("Breakout",        "breakout4panels.py",
+     "Casse-briques, 3 rangees, vies, acceleration",
+     "[Gauche/Droite] Raquette   [Espace] Lancer   [Echap] Quitter"),
+    ("Platformer",      "platform4panels.py",
+     "Saut, 5 plateformes, 12 collectibles",
+     "[Gauche/Droite] Courir   [Haut] Sauter   [Echap] Quitter"),
     ("EFFETS VISUELS",),
-    ("Metaballs",       "metaballs4panels.py",  "4 billes colorees fusionnantes, smoothstep"),
-    ("Mandelbrot",      "mandelbrot4panels.py", "Zoom exponentiel 3 cibles, palette animee"),
-    ("Lorenz",          "lorenz4panels.py",     "Attracteur de Lorenz, trainee 500 pts, RK4"),
-    ("Jeu de la Vie",   "life4panels.py",       "Conway 128x32, reinitialisation auto"),
-    ("Etoiles",         "starfield.py",         "Warp speed, etoiles qui convergent au centre"),
-    ("Feu",             "fire.py",              "Automate cellulaire de feu"),
-    ("Matrix",          "fallingletters.py",    "Pluie de lettres vertes avec trainee"),
-    ("Feux d'artifice", "fireworks.py",         "Fusees qui eclatent en particules colorees"),
-    ("Galaxie",         "galaxy.py",            "Spirale galactique en rotation"),
-    ("Cube 3D",         "cube3d.py",            "Cube rotatif projete en perspective"),
-    ("Sable",           "sandfall.py",          "Gravite cellulaire, grains qui s'accumulent"),
-    ("Cascade",         "waterfall.py",         "Gouttes qui tombent et s'ecoulent"),
-    ("Gouttes",         "dropfall.py",          "Chute de gouttes colorees"),
-    ("Marquee",         "marquee4panels.py",    "Texte defilant sur les 4 panneaux"),
+    ("Metaballs",       "metaballs4panels.py",
+     "4 billes colorees fusionnantes, smoothstep", ""),
+    ("Mandelbrot",      "mandelbrot4panels.py",
+     "Zoom exponentiel 3 cibles, palette animee", ""),
+    ("Lorenz",          "lorenz4panels.py",
+     "Attracteur de Lorenz, trainee 500 pts, RK4", ""),
+    ("Jeu de la Vie",   "life4panels.py",
+     "Conway 128x32, reinitialisation auto", ""),
+    ("Etoiles",         "starfield.py",
+     "Warp speed, etoiles qui convergent au centre", ""),
+    ("Feu",             "fire.py",
+     "Automate cellulaire de feu", ""),
+    ("Matrix",          "fallingletters.py",
+     "Pluie de lettres vertes avec trainee", ""),
+    ("Feux d'artifice", "fireworks.py",
+     "Fusees qui eclatent en particules colorees", ""),
+    ("Galaxie",         "galaxy.py",
+     "Spirale galactique en rotation", ""),
+    ("Cube 3D",         "cube3d.py",
+     "Cube rotatif projete en perspective", ""),
+    ("Sable",           "sandfall.py",
+     "Gravite cellulaire, grains qui s'accumulent", ""),
+    ("Cascade",         "waterfall.py",
+     "Gouttes qui tombent et s'ecoulent", ""),
+    ("Gouttes",         "dropfall.py",
+     "Chute de gouttes colorees", ""),
+    ("Marquee",         "marquee4panels.py",
+     "Texte defilant sur les 4 panneaux", ""),
     ("SON",),
-    ("VU-metre",        "vumetre.py",           "Bargraphes reactifs au micro en temps reel"),
+    ("VU-metre",        "vumetre.py",
+     "Bargraphes reactifs au micro en temps reel", ""),
     ("UTILITAIRES",),
-    ("Controleur",      "controler.py",         "Carre deplacable au clavier (1 panneau)"),
-    ("Balle",           "bouncingball.py",      "Balle rebondissante (demo technique)"),
-    ("Sprite",          "sprite_walk.py",       "Sprite anime frame par frame"),
-    ("Image statique",  "display_1led.py",      "Affichage PNG statique sur 1 panneau"),
-    ("Vie 1 panneau",   "lifegame.py",          "Jeu de la Vie sur 1 panneau"),
+    ("Controleur",      "controler.py",
+     "Carre deplacable au clavier (1 panneau)",
+     "[Fleches] Deplacer le carre   [Echap] Quitter"),
+    ("Balle",           "bouncingball.py",
+     "Balle rebondissante (demo technique)", ""),
+    ("Sprite",          "sprite_walk.py",
+     "Sprite anime frame par frame", ""),
+    ("Image statique",  "display_1led.py",
+     "Affichage PNG statique sur 1 panneau", ""),
+    ("Vie 1 panneau",   "lifegame.py",
+     "Jeu de la Vie sur 1 panneau", ""),
 ]
 
-SELECTABLE = [i for i, e in enumerate(ENTRIES) if len(e) == 3]
+SELECTABLE = [i for i, e in enumerate(ENTRIES) if len(e) == 4]
+LABEL_W    = max(len(e[0]) for e in ENTRIES if len(e) == 4) + 2
 
-LABEL_W = max(len(e[0]) for e in ENTRIES if len(e) == 3) + 2  # 18
+TITLE  = "BK-LIGHT -- Demos panneaux LED 128x32 (4 x 32x32 px)"
+FOOTER = " [Entree] Lancer   [Q] Quitter   [H/B] Naviguer   [PgUp/PgDn] Page   [Debut/Fin] Extremes"
 
-TITLE   = "BK-LIGHT -- Demos panneaux LED 128x32 (4 x 32x32 px)"
-FOOTER  = " [Entree] Lancer   [Q] Quitter   [H/B] Naviguer   [PgUp/PgDn] Page   [Debut/Fin] Extremes"
+NO_CTRL_MSG = "  Aucune interaction clavier -- Ctrl+C pour arreter"
 
 
 # ─────────────────────────────────────────────
@@ -74,11 +106,12 @@ def next_page(current, page):
 # COULEURS
 # ─────────────────────────────────────────────
 
-C_TITLE  = 1   # cyan  / fond defaut
-C_SEL    = 2   # noir  / fond cyan (selection)
-C_CAT    = 3   # jaune / fond defaut (categorie)
-C_DEMO   = 4   # blanc / fond defaut
-C_ERR    = 5   # rouge / fond defaut
+C_TITLE = 1   # cyan   / fond defaut  — titre et separateurs
+C_SEL   = 2   # noir   / fond cyan    — ligne selectionnee
+C_CAT   = 3   # jaune  / fond defaut  — en-tetes de categorie
+C_DEMO  = 4   # blanc  / fond defaut  — demos normales
+C_ERR   = 5   # rouge  / fond defaut  — erreur
+C_CTRL  = 6   # vert   / fond defaut  — controles clavier actifs
 
 
 def setup_colors():
@@ -89,6 +122,7 @@ def setup_colors():
     curses.init_pair(C_CAT,   curses.COLOR_YELLOW, -1)
     curses.init_pair(C_DEMO,  curses.COLOR_WHITE,  -1)
     curses.init_pair(C_ERR,   curses.COLOR_RED,    -1)
+    curses.init_pair(C_CTRL,  curses.COLOR_GREEN,  -1)
 
 
 # ─────────────────────────────────────────────
@@ -105,13 +139,14 @@ def _put(screen, y, x, text, attr, w):
 def draw(screen, selected, scroll_top, message):
     screen.erase()
     h, w = screen.getmaxyx()
-    list_h = h - 4   # 2 lignes en-tete + 1 sep + 1 pied
+    # Layout :  0=titre  1=sep  2..h-4=liste  h-3=sep  h-2=controles  h-1=hints
+    list_h = max(1, h - 5)
 
     # Titre
     _put(screen, 0, 0, TITLE.center(w), curses.color_pair(C_TITLE) | curses.A_BOLD, w)
     _put(screen, 1, 0, "-" * (w - 1),  curses.color_pair(C_TITLE), w)
 
-    # Liste
+    # Liste des demos
     for row in range(list_h):
         idx = scroll_top + row
         if idx >= len(ENTRIES):
@@ -120,27 +155,37 @@ def draw(screen, selected, scroll_top, message):
         y = row + 2
 
         if len(entry) == 1:
-            line = "  -- %s" % entry[0]
-            _put(screen, y, 0, line, curses.color_pair(C_CAT) | curses.A_BOLD, w)
+            _put(screen, y, 0, "  -- %s" % entry[0],
+                 curses.color_pair(C_CAT) | curses.A_BOLD, w)
         else:
-            label, _, desc = entry
+            label, _, desc, _ = entry
             is_sel = (idx == selected)
             prefix = " > " if is_sel else "   "
-            lbl    = (prefix + label).ljust(LABEL_W + 3)
-            line   = lbl + "  " + desc
-
+            line   = (prefix + label).ljust(LABEL_W + 3) + "  " + desc
             if is_sel:
-                attr = curses.color_pair(C_SEL) | curses.A_BOLD
-                _put(screen, y, 0, line.ljust(w - 1), attr, w)
+                _put(screen, y, 0, line.ljust(w - 1),
+                     curses.color_pair(C_SEL) | curses.A_BOLD, w)
             else:
                 _put(screen, y, 0, line, curses.color_pair(C_DEMO), w)
 
-    # Pied de page
-    _put(screen, h - 2, 0, "-" * (w - 1), curses.color_pair(C_TITLE), w)
+    # Separateur avant le panneau du bas
+    _put(screen, h - 3, 0, "-" * (w - 1), curses.color_pair(C_TITLE), w)
+
+    # Ligne de controles (ou message d'erreur)
     if message:
-        _put(screen, h - 1, 0, " " + message, curses.color_pair(C_ERR) | curses.A_BOLD, w)
+        _put(screen, h - 2, 0, "  " + message,
+             curses.color_pair(C_ERR) | curses.A_BOLD, w)
     else:
-        _put(screen, h - 1, 0, FOOTER, curses.color_pair(C_TITLE), w)
+        _, _, _, ctrl = ENTRIES[selected]
+        if ctrl:
+            _put(screen, h - 2, 0, "  Controles : " + ctrl,
+                 curses.color_pair(C_CTRL) | curses.A_BOLD, w)
+        else:
+            _put(screen, h - 2, 0, NO_CTRL_MSG,
+                 curses.color_pair(C_DEMO), w)
+
+    # Hints de navigation (toujours visibles)
+    _put(screen, h - 1, 0, FOOTER, curses.color_pair(C_TITLE), w)
 
     screen.refresh()
 
@@ -150,7 +195,7 @@ def draw(screen, selected, scroll_top, message):
 # ─────────────────────────────────────────────
 
 def launch(screen, entry):
-    label, filename, _ = entry
+    label, filename = entry[0], entry[1]
     filepath = os.path.join(PROJECT_DIR, filename)
     if not os.path.exists(filepath):
         return "Fichier introuvable : %s" % filename
@@ -184,7 +229,7 @@ def launch(screen, entry):
 def tui(screen):
     curses.curs_set(0)
     screen.keypad(True)
-    screen.timeout(200)   # getch non bloquant (pour gerer le resize)
+    screen.timeout(200)
     setup_colors()
 
     selected   = SELECTABLE[0]
@@ -193,9 +238,8 @@ def tui(screen):
 
     while True:
         h, w = screen.getmaxyx()
-        list_h = max(1, h - 4)
+        list_h = max(1, h - 5)
 
-        # Maintient la selection dans la fenetre visible
         if selected < scroll_top:
             scroll_top = selected
         elif selected >= scroll_top + list_h:
@@ -207,7 +251,7 @@ def tui(screen):
 
         key = screen.getch()
 
-        if key in (ord('q'), ord('Q'), 27):   # Q ou Echap
+        if key in (ord('q'), ord('Q'), 27):
             break
         elif key == curses.KEY_UP:
             selected = prev_sel(selected)
@@ -225,7 +269,6 @@ def tui(screen):
             err = launch(screen, ENTRIES[selected])
             if err:
                 message = err
-        # KEY_RESIZE : le prochain tour redessine automatiquement
 
 
 def main():
