@@ -27,6 +27,7 @@
 | `waterfall.py` | Cascade : gouttes qui tombent et s'écoulent. |
 | `dropfall.py` | Chute de gouttes colorées. |
 | `marquee4panels.py` | Texte défilant (marquee) sur les 4 panneaux. Paramétrable. |
+| `lorenz4panels.py` | Attracteur de Lorenz : traîne de 500 points colorée par vitesse (bleu=lent → cyan → blanc=rapide). Intégration RK4, projection XZ. Numpy/Python pur. |
 
 ## Son
 

@@ -86,7 +86,7 @@ Produit des structures complexes. Réinitialisation automatique après stagnatio
 Nuée de particules qui se suivent et s'évitent (alignement, cohésion, séparation).
 Visuellement hypnotique. Aucune interaction requise.
 
-### Attracteur de Lorenz
+### Attracteur de Lorenz ✓
 Trajectoire chaotique de l'attracteur de Lorenz projetée en 2D avec traîne qui s'efface.
 Paramètres sigma/rho/beta classiques. Couleur selon vitesse.
 
