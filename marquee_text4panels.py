@@ -30,6 +30,7 @@ FONT_NAME = "aldopc"
 FONT_SIZE = 16
 SPEED = 2                # pixels deplaces par frame (droite vers gauche)
 FPS = 20.0
+GAP = W                  # decalage d'un panneau (32 px) entre deux occurrences du texte
 
 
 # ─────────────────────────────────────────────
@@ -74,10 +75,21 @@ def build_strip():
     return bg
 
 
-def make_panel_pngs(strip, scroll_x):
+def make_panel_pngs(strip, strip_width, position):
+    """Pave le canvas avec des copies repetees de strip, espacees de GAP px,
+    pour qu'une nouvelle occurrence du texte apparaisse en continu des que
+    la precedente est sortie de l'ecran."""
     canvas = Image.new("RGB", (TOTAL_W, H), BACKGROUND)
     ty = (H - strip.height) // 2
-    canvas.paste(strip, (scroll_x, ty))
+
+    shift = position % strip_width
+    x = -shift
+    while x > -strip_width:
+        x -= strip_width
+    while x < TOTAL_W:
+        canvas.paste(strip, (x, ty))
+        x += strip_width
+
     pngs = []
     for i in range(NB):
         tile = canvas.crop((i * W, 0, (i + 1) * W, H))
@@ -102,26 +114,24 @@ async def disconnect_all(sessions):
 
 async def run():
     strip = build_strip()
-    strip_w = strip.width
+    strip_width = strip.width + GAP
     delay = 1.0 / FPS
-    scroll_x = TOTAL_W
+    position = 0
 
     print("Connexion a %d panneaux..." % NB)
     sessions = await connect_all()
-    print("Defilement '%s' sur %dx%d px a %d FPS, vitesse %d px/frame" % (
-        TEXT, TOTAL_W, H, FPS, SPEED))
+    print("Defilement '%s' sur %dx%d px a %d FPS, vitesse %d px/frame, decalage %d px" % (
+        TEXT, TOTAL_W, H, FPS, SPEED, GAP))
     print("Echap pour arreter.")
 
     try:
         while state["running"]:
-            pngs = make_panel_pngs(strip, scroll_x)
+            pngs = make_panel_pngs(strip, strip_width, position)
             await asyncio.gather(*[
                 sessions[i].send_png(pngs[i], delay=0.0)
                 for i in range(NB)
             ])
-            scroll_x -= SPEED
-            if scroll_x < -strip_w:
-                scroll_x = TOTAL_W
+            position += SPEED
             await asyncio.sleep(delay)
     except KeyboardInterrupt:
         print("\nArret demande.")
