@@ -4,8 +4,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "76:BF:38:1E:71:88"
 W, H = 32, 32
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 # ─────────────────────────────────────────────
@@ -132,9 +143,9 @@ async def game_of_life(
     last_pop = population(grid)
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Jeu de la vie — mode '{mode}' pendant {duration}s...")
+        print(f"Jeu de la vie — mode '{mode}' pendant {duration}s... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             grid, age = step_life(grid, age)
 
             # Détection de stagnation → nouvelle grille aléatoire
@@ -158,6 +169,9 @@ async def game_of_life(
         print("Animation terminée.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(game_of_life(
     duration=120.0,
     fps=10.0,
@@ -165,3 +179,5 @@ asyncio.run(game_of_life(
     stagnation_limit=40,
     mode="random",   # "random" | "glider" | "pulsar" | "r_pentomino" | "diehard"
 ))
+
+listener.stop()

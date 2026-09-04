@@ -5,9 +5,20 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "76:BF:38:1E:71:88"
 W, H = 32, 32
 CX, CY = W / 2.0, H / 2.0
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 def make_star():
@@ -75,9 +86,9 @@ async def starwars_animation(
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Hyperespace pendant {duration}s...")
+        print(f"Hyperespace pendant {duration}s... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
 
             # Mise à jour de chaque étoile
             for s in stars:
@@ -106,6 +117,9 @@ async def starwars_animation(
         print("Animation terminée.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(starwars_animation(
     duration=60.0,
     fps=20.0,
@@ -113,3 +127,5 @@ asyncio.run(starwars_animation(
     speed=4.0,     # vitesse : 1 lente → 10 hyperespace max
     trail_len=4,   # traîne : 1 point → 10 longues lignes
 ))
+
+listener.stop()

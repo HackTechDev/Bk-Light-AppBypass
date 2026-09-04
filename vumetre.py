@@ -7,8 +7,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "6F:E3:D9:1A:19:CA"
 W, H = 32, 32
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 # ─────────────────────────────────────────────
 # CONFIG VU-MÈTRE
@@ -108,7 +119,7 @@ def audio_thread(mp3_path: str, audio_state: AudioState):
 
     print("Lecture audio démarrée.")
     pos = 0
-    while pos < len(raw_data):
+    while pos < len(raw_data) and state["running"]:
         chunk = raw_data[pos:pos + CHUNK_SIZE]
         if len(chunk) < CHUNK_SIZE:
             chunk = np.pad(chunk, (0, CHUNK_SIZE - len(chunk)))
@@ -184,8 +195,8 @@ async def display_loop(audio_state: AudioState, fps: float = 20.0):
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print("Panneau LED connecté.")
-        while True:
+        print("Panneau LED connecté. (Echap pour arreter)")
+        while state["running"]:
             with audio_state.lock:
                 levels   = audio_state.levels.copy()
                 peaks    = audio_state.peak.copy()
@@ -223,7 +234,7 @@ async def main(mp3_path: str):
     # Lance la boucle d'affichage LED en parallèle
     await display_loop(audio_state, fps=20.0)
 
-    t.join()
+    t.join(timeout=1.0)
     print("Programme terminé.")
 
 
@@ -232,4 +243,10 @@ if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage : python vumeter.py mon_fichier.mp3")
         sys.exit(1)
+
+    listener = keyboard.Listener(on_press=on_press)
+    listener.start()
+
     asyncio.run(main(sys.argv[1]))
+
+    listener.stop()

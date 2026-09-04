@@ -4,8 +4,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "76:BF:38:1E:71:88"
 W, H = 32, 32
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 def sand_color(grain):
     v = int(160 + grain * 60)
@@ -79,9 +90,9 @@ async def sand_animation(
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Sable pendant {duration}s à {fps} FPS...")
+        print(f"Sable pendant {duration}s à {fps} FPS... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             grid = step_sand(grid, rate, wind)
 
             if reset_when_full and all(grid[x] for x in range(W)):
@@ -93,6 +104,9 @@ async def sand_animation(
             await asyncio.sleep(delay)
         print("Animation terminée.")
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(sand_animation(
     duration=60.0,
     fps=15.0,
@@ -100,3 +114,5 @@ asyncio.run(sand_animation(
     wind=0,
     reset_when_full=True,
 ))
+
+listener.stop()

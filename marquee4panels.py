@@ -8,6 +8,9 @@ from bk_light.display_session import BleDisplaySession
 from bk_light.fonts import resolve_font
 from bk_light.text import build_text_bitmap
 
+# pip install pynput
+from pynput import keyboard
+
 # Panneaux de gauche a droite
 MAC_PANELS = [
     "FF:50:05:B7:03:C6",  # panneau 0 - gauche
@@ -27,6 +30,19 @@ FONT_NAME = "aldopc"
 FONT_SIZE = 16
 SPEED = 2                # pixels deplaces par frame (droite vers gauche)
 FPS = 20.0
+
+
+# ─────────────────────────────────────────────
+# CLAVIER (pynput — Echap pour quitter)
+# ─────────────────────────────────────────────
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 def build_strip():
@@ -80,10 +96,10 @@ async def run():
     sessions = await connect_all()
     print("Defilement '%s' sur %dx%d px a %d FPS, vitesse %d px/frame" % (
         TEXT, TOTAL_W, H, FPS, SPEED))
-    print("Ctrl+C pour arreter.")
+    print("Echap pour arreter.")
 
     try:
-        while True:
+        while state["running"]:
             pngs = make_panel_pngs(strip, scroll_x)
             await asyncio.gather(*[
                 sessions[i].send_png(pngs[i], delay=0.0)
@@ -100,4 +116,9 @@ async def run():
         print("Deconnecte.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(run())
+
+listener.stop()

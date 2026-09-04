@@ -5,8 +5,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "76:BF:38:1E:71:88"  # ← votre adresse MAC
 W, H = 32, 32   # adaptez à votre panneau (64x16 si ACT1025)
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 # Palette feu : noir → rouge → orange → jaune → blanc
 PALETTE = []
@@ -58,14 +69,17 @@ async def fire_animation(
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Feu pendant {duration}s à {fps} FPS...")
+        print(f"Feu pendant {duration}s à {fps} FPS... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             buf = step_fire(buf, intensity, cooling, wind)
             png = buf_to_png(buf)
             await session.send_png(png, delay=0.0)
             await asyncio.sleep(delay)
         print("Animation terminée.")
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 asyncio.run(fire_animation(
     duration=30.0,
@@ -74,3 +88,5 @@ asyncio.run(fire_animation(
     cooling=4.0,     # diminuer pour des flammes plus longues
     wind=1,          # 0 = droit, + = vers la droite
 ))
+
+listener.stop()

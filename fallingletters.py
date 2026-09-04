@@ -4,12 +4,23 @@ from io import BytesIO
 from PIL import Image, ImageDraw, ImageFont
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_LEFT  = "6F:E3:D9:1A:19:CA"
 MAC_RIGHT = "76:BF:38:1E:71:88"
 
 W, H = 32, 32
 TOTAL_W = W * 2  # 64 px de large sur 2 panneaux
 TEXT = "ILARD HACKLAB"
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 # ─────────────────────────────────────────────
 # POLICE BITMAP 5x7
@@ -203,9 +214,9 @@ async def falling_text_animation(
     async with BleDisplaySession(MAC_LEFT)  as sess_left, \
                BleDisplaySession(MAC_RIGHT) as sess_right:
 
-        print(f"Texte tombant sur 2 panneaux — '{text}'")
+        print(f"Texte tombant sur 2 panneaux — '{text}' (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
 
             all_fallen = all(g["fallen"] for g in grains)
 
@@ -231,6 +242,9 @@ async def falling_text_animation(
         print("Animation terminée.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(falling_text_animation(
     duration=120.0,
     fps=15.0,
@@ -239,3 +253,5 @@ asyncio.run(falling_text_animation(
     text="ILARD HACKLAB",
     pause_after=60,       # frames avant rechargement (~4s à 15fps)
 ))
+
+listener.stop()

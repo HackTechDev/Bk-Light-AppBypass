@@ -3,6 +3,9 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 # Panneaux de gauche a droite
 MAC_PANELS = [
     "FF:50:05:B7:03:C6",  # panneau 0 - gauche
@@ -51,6 +54,19 @@ SPAWN_POSITIONS = [
     (72,  25, 0),   # A
     (104, 25, 1),   # B
 ]
+
+
+# ─────────────────────────────────────────────
+# CLAVIER (pynput — Echap pour quitter)
+# ─────────────────────────────────────────────
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 # ─────────────────────────────────────────────
@@ -154,11 +170,11 @@ async def run():
 
     print("Connexion a %d panneaux..." % NB)
     sessions = await connect_all()
-    print("Jeu de la vie %dx%d - %d glisseurs - Ctrl+C pour arreter" % (
+    print("Jeu de la vie %dx%d - %d glisseurs - Echap pour arreter" % (
         GW, GH, len(SPAWN_POSITIONS)))
 
     try:
-        while True:
+        while state["running"]:
             grid, age = step(grid, age)
             gen += 1
 
@@ -193,4 +209,9 @@ async def run():
         print("Deconnecte.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(run())
+
+listener.stop()

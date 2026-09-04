@@ -4,8 +4,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "6F:E3:D9:1A:19:CA"
 W, H = 32, 32
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 def rain_color(brightness):
     b = min(255, max(0, int(brightness)))
@@ -87,14 +98,17 @@ async def rain_animation(
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Pluie pendant {duration}s à {fps} FPS...")
+        print(f"Pluie pendant {duration}s à {fps} FPS... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             pixels = step_rain(drops, splashes, intensity, speed, wind)
             png = pixels_to_png(pixels)
             await session.send_png(png, delay=0.0)
             await asyncio.sleep(delay)
         print("Animation terminée.")
+
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
 
 asyncio.run(rain_animation(
     duration=30.0,
@@ -103,3 +117,5 @@ asyncio.run(rain_animation(
     speed=2,       # lente: 1 / normale: 2 / rapide: 5
     wind=0,        # pluie oblique: -2 ou +2
 ))
+
+listener.stop()

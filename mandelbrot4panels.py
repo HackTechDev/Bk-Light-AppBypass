@@ -4,6 +4,9 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 try:
     import numpy as np
     _NP = True
@@ -38,6 +41,19 @@ ZOOM_W_START = 3.5      # largeur initiale du plan complexe visible
 ZOOM_W_MIN   = 0.0018   # largeur minimale avant reinitialisation
 
 TWO_PI = 2.0 * math.pi
+
+
+# ─────────────────────────────────────────────
+# CLAVIER (pynput — Echap pour quitter)
+# ─────────────────────────────────────────────
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 # ─────────────────────────────────────────────
@@ -167,7 +183,7 @@ async def run():
     engine = "numpy" if _NP else "Python pur (lent)"
     print("Connexion a %d panneaux... (moteur : %s)" % (NB, engine))
     sessions = await connect_all()
-    print("Mandelbrot %dx%d | MAX_ITER=%d | FPS=%.0f | Ctrl+C pour arreter" % (
+    print("Mandelbrot %dx%d | MAX_ITER=%d | FPS=%.0f | Echap pour arreter" % (
         GW, GH, MAX_ITER, FPS))
     print("3 cibles de zoom :\n"
           "  1) Spirales bord cardioide  (-0.7269,  0.1889)\n"
@@ -181,7 +197,7 @@ async def run():
     frame      = 0
 
     try:
-        while True:
+        while state["running"]:
             cx, cy = TARGETS[target_idx]
 
             iters = compute_frame(cx, cy, view_w)
@@ -209,4 +225,9 @@ async def run():
         print("Deconnecte.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(run())
+
+listener.stop()

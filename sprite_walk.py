@@ -3,8 +3,19 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 MAC_ADDRESS = "6F:E3:D9:1A:19:CA"
 W, H = 32, 32
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 # ─────────────────────────────────────────────
 # SPRITES (pixels extraits du sprite sheet)
@@ -70,9 +81,9 @@ async def sprite_animation(
     delay = 1.0 / fps
 
     async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Stickman sprite pendant {duration}s...")
+        print(f"Stickman sprite pendant {duration}s... (Echap pour arreter)")
         t0 = asyncio.get_event_loop().time()
-        while asyncio.get_event_loop().time() - t0 < duration:
+        while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             frame_idx = SEQUENCE[seq_idx % len(SEQUENCE)]
             pixels = render_frame(frame_idx, x, direction)
             png = pixels_to_png(pixels)
@@ -93,8 +104,13 @@ async def sprite_animation(
         print("Animation terminée.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(sprite_animation(
     duration=60.0,
     fps=8.0,
     speed=1,
 ))
+
+listener.stop()

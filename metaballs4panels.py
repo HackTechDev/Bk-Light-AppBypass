@@ -4,6 +4,9 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 try:
     import numpy as np
     _NP = True
@@ -63,6 +66,19 @@ BALLS = [
     Ball(64, 16, 42,  9, 0.89, 1.31,  4.19, 2.50,  9, ( 30,  80, 255)),  # bleu
     Ball(64, 16, 30, 11, 1.31, 0.58,  1.05, 3.70,  8, (210,   0, 180)),  # magenta
 ]
+
+# ─────────────────────────────────────────────
+# CLAVIER (pynput — Echap pour quitter)
+# ─────────────────────────────────────────────
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
+
 
 # Grille de pixels precalculee pour numpy
 if _NP:
@@ -199,7 +215,7 @@ async def run():
     engine = "numpy" if _NP else "Python pur"
     print("Connexion a %d panneaux... (moteur : %s)" % (NB, engine))
     sessions = await connect_all()
-    print("Metaballs %dx%d px | %d billes | FPS cible : %.0f | Ctrl+C pour arreter" % (
+    print("Metaballs %dx%d px | %d billes | FPS cible : %.0f | Echap pour arreter" % (
         GW, GH, len(BALLS), FPS))
     print("Couleurs : orange / vert / bleu / magenta -- melange par champ scalaire\n")
 
@@ -207,7 +223,7 @@ async def run():
     t     = 0.0
 
     try:
-        while True:
+        while state["running"]:
             img  = make_frame(t)
             pngs = make_tiles(img)
             await send_all(sessions, pngs)
@@ -221,4 +237,9 @@ async def run():
         print("Deconnecte.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(run())
+
+listener.stop()

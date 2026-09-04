@@ -5,6 +5,9 @@ from io import BytesIO
 from PIL import Image
 from bk_light.display_session import BleDisplaySession
 
+# pip install pynput
+from pynput import keyboard
+
 try:
     import numpy as np
     _NP = True
@@ -37,6 +40,19 @@ X_MIN, X_MAX = -25.0, 25.0
 Z_MIN, Z_MAX =   1.0, 49.0
 
 SPEED_MAX = 40.0
+
+
+# ─────────────────────────────────────────────
+# CLAVIER (pynput — Echap pour quitter)
+# ─────────────────────────────────────────────
+
+state = {"running": True}
+
+
+def on_press(key):
+    if key == keyboard.Key.esc:
+        state["running"] = False
+        return False
 
 
 # ─────────────────────────────────────────────
@@ -208,7 +224,7 @@ async def run():
     print("Lorenz %dx%d | sigma=%.0f rho=%.0f beta=%.4f | FPS=%.0f" % (
         GW, GH, SIGMA, RHO, BETA, FPS))
     print("Trainee %d pts | bleu=lent -> cyan -> blanc=rapide | projection XZ" % TRAIL_LEN)
-    print("Ctrl+C pour arreter\n")
+    print("Echap pour arreter\n")
 
     # Condition initiale
     x, y, z = 1.0, 0.0, 20.0
@@ -227,7 +243,7 @@ async def run():
     delay = 1.0 / FPS
 
     try:
-        while True:
+        while state["running"]:
             for _ in range(STEPS_PER_FRAME):
                 x, y, z, speed = rk4_step(x, y, z, DT)
                 trail.append((x, z, speed))
@@ -244,4 +260,9 @@ async def run():
         print("Deconnecte.")
 
 
+listener = keyboard.Listener(on_press=on_press)
+listener.start()
+
 asyncio.run(run())
+
+listener.stop()
