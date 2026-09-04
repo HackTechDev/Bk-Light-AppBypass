@@ -7,8 +7,19 @@ from bk_light.display_session import BleDisplaySession
 # pip install pynput
 from pynput import keyboard
 
-MAC_ADDRESS = "76:BF:38:1E:71:88"
+MAC_PANELS = [
+    "FF:50:05:B7:03:C6",
+    "2B:F4:CA:80:5D:A9",
+    "6F:E3:D9:1A:19:CA",
+    "76:BF:38:1E:71:88",
+]
+
 W, H = 32, 32
+NB = len(MAC_PANELS)
+GW = W * NB   # 128 px
+GH = H        # 32 px
+DRIFT_AMPLITUDE = GW / 2.0 - 18.0   # portee du balayage horizontal du cube
+DRIFT_SPEED = 0.15                  # vitesse de balayage gauche-droite
 
 state = {"running": True}
 
@@ -51,10 +62,10 @@ def rot_z(v, a):
     c, s = math.cos(a), math.sin(a)
     return (v[0]*c - v[1]*s, v[0]*s + v[1]*c, v[2])
 
-def project(v, size=8, fov=20):
+def project(v, size=8, fov=20, center_x=W / 2, center_y=H / 2):
     z = v[2] + fov
-    px = int(W / 2 + v[0] * size * fov / z)
-    py = int(H / 2 + v[1] * size * fov / z)
+    px = int(center_x + v[0] * size * fov / z)
+    py = int(center_y + v[1] * size * fov / z)
     return (px, py)
 
 def draw_line(pixels, x0, y0, x1, y1, color):
@@ -63,8 +74,8 @@ def draw_line(pixels, x0, y0, x1, y1, color):
     sy = 1 if y0 < y1 else -1
     err = dx - dy
     while True:
-        if 0 <= x0 < W and 0 <= y0 < H:
-            pixels[y0 * W + x0] = color
+        if 0 <= x0 < GW and 0 <= y0 < GH:
+            pixels[y0 * GW + x0] = color
         if x0 == x1 and y0 == y1:
             break
         e2 = 2 * err
@@ -78,7 +89,7 @@ def draw_line(pixels, x0, y0, x1, y1, color):
 def fill_face(pixels, pts, color):
     ys = [p[1] for p in pts]
     min_y = max(0, min(ys))
-    max_y = min(H - 1, max(ys))
+    max_y = min(GH - 1, max(ys))
     for y in range(min_y, max_y + 1):
         xs = []
         n = len(pts)
@@ -89,11 +100,11 @@ def fill_face(pixels, pts, color):
                 xs.append(x)
         xs.sort()
         for i in range(0, len(xs) - 1, 2):
-            for x in range(max(0, xs[i]), min(W, xs[i + 1])):
-                pixels[y * W + x] = color
+            for x in range(max(0, xs[i]), min(GW, xs[i + 1])):
+                pixels[y * GW + x] = color
 
-def render_cube(ax, ay, az, size=8, wireframe=True, show_faces=False):
-    pixels = [(0, 0, 0)] * (W * H)
+def render_cube(ax, ay, az, size=8, wireframe=True, show_faces=False, center_x=GW / 2, center_y=GH / 2):
+    pixels = [(0, 0, 0)] * (GW * GH)
 
     # Projection de tous les sommets
     projected = []
@@ -101,7 +112,7 @@ def render_cube(ax, ay, az, size=8, wireframe=True, show_faces=False):
         r = rot_x(v, ax)
         r = rot_y(r, ay)
         r = rot_z(r, az)
-        projected.append({"p3": r, "p2": project(r, size)})
+        projected.append({"p3": r, "p2": project(r, size, center_x=center_x, center_y=center_y)})
 
     # Faces (triées par profondeur, arrière en premier)
     if show_faces:
@@ -122,12 +133,40 @@ def render_cube(ax, ay, az, size=8, wireframe=True, show_faces=False):
 
     return pixels
 
-def pixels_to_png(pixels):
-    img = Image.new("RGB", (W, H))
+def pixels_to_img(pixels):
+    img = Image.new("RGB", (GW, GH))
     img.putdata(pixels)
-    out = BytesIO()
-    img.save(out, format="PNG", optimize=False)
-    return out.getvalue()
+    return img
+
+def make_tiles(img):
+    pngs = []
+    for i in range(NB):
+        tile = img.crop((i * W, 0, (i + 1) * W, GH))
+        buf = BytesIO()
+        tile.save(buf, format="PNG", optimize=False)
+        pngs.append(buf.getvalue())
+    return pngs
+
+
+async def connect_all():
+    sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
+    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    return sessions
+
+
+async def disconnect_all(sessions):
+    await asyncio.gather(
+        *[s.__aexit__(None, None, None) for s in sessions],
+        return_exceptions=True,
+    )
+
+
+async def send_all(sessions, pngs):
+    await asyncio.gather(*[
+        sessions[i].send_png(pngs[i], delay=0.0)
+        for i in range(NB)
+    ])
+
 
 async def cube_animation(
     duration=30.0,
@@ -142,19 +181,26 @@ async def cube_animation(
     ax = ay = az = 0.0
     delay = 1.0 / fps
     step = 0.02
+    t = 0.0
 
-    async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Cube 3D pendant {duration}s à {fps} FPS... (Echap pour arreter)")
-        t0 = asyncio.get_event_loop().time()
+    print("Connexion a %d panneaux..." % NB)
+    sessions = await connect_all()
+    print(f"Cube 3D pendant {duration}s à {fps} FPS... (Echap pour arreter)")
+    t0 = asyncio.get_event_loop().time()
+    try:
         while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             ax += speed_x * step
             ay += speed_y * step
             az += speed_z * step
-            pixels = render_cube(ax, ay, az, size, wireframe, show_faces)
-            png = pixels_to_png(pixels)
-            await session.send_png(png, delay=0.0)
+            t += step
+            center_x = GW / 2.0 + DRIFT_AMPLITUDE * math.sin(t * DRIFT_SPEED)
+            pixels = render_cube(ax, ay, az, size, wireframe, show_faces, center_x, GH / 2.0)
+            pngs = make_tiles(pixels_to_img(pixels))
+            await send_all(sessions, pngs)
             await asyncio.sleep(delay)
         print("Animation terminée.")
+    finally:
+        await disconnect_all(sessions)
 
 listener = keyboard.Listener(on_press=on_press)
 listener.start()

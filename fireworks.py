@@ -8,8 +8,17 @@ from bk_light.display_session import BleDisplaySession
 # pip install pynput
 from pynput import keyboard
 
-MAC_ADDRESS = "76:BF:38:1E:71:88"
+MAC_PANELS = [
+    "FF:50:05:B7:03:C6",
+    "2B:F4:CA:80:5D:A9",
+    "6F:E3:D9:1A:19:CA",
+    "76:BF:38:1E:71:88",
+]
+
 W, H = 32, 32
+NB = len(MAC_PANELS)
+GW = W * NB   # 128 px
+GH = H        # 32 px
 GRAVITY = 0.04
 
 state = {"running": True}
@@ -36,10 +45,10 @@ def hsv_to_rgb(h):
 
 def make_rocket():
     return {
-        "x":       random.uniform(2, W - 3),
-        "y":       float(H - 1),
+        "x":       random.uniform(2, GW - 3),
+        "y":       float(GH - 1),
         "vy":      -(random.uniform(0.5, 1.1)),
-        "target_y": random.uniform(3, H * 0.5),
+        "target_y": random.uniform(3, GH * 0.5),
         "hue":     random.uniform(0, 360),
         "trail":   [],
     }
@@ -63,9 +72,9 @@ def make_burst(x, y, hue, nb_parts=16, life_max=14):
 
 def set_pixel(pixels, x, y, r, g, b, alpha=1.0):
     x, y = int(round(x)), int(round(y))
-    if not (0 <= x < W and 0 <= y < H):
+    if not (0 <= x < GW and 0 <= y < GH):
         return
-    idx = y * W + x
+    idx = y * GW + x
     pr, pg, pb = pixels[idx]
     pixels[idx] = (
         min(255, pr + int(r * alpha)),
@@ -75,7 +84,7 @@ def set_pixel(pixels, x, y, r, g, b, alpha=1.0):
 
 
 def render(rockets, particles):
-    pixels = [(0, 0, 0)] * (W * H)
+    pixels = [(0, 0, 0)] * (GW * GH)
 
     # Fusées montantes
     for rk in rockets:
@@ -95,18 +104,46 @@ def render(rockets, particles):
     return pixels
 
 
-def pixels_to_png(pixels):
-    img = Image.new("RGB", (W, H))
+def pixels_to_img(pixels):
+    img = Image.new("RGB", (GW, GH))
     img.putdata(pixels)
-    out = BytesIO()
-    img.save(out, format="PNG", optimize=False)
-    return out.getvalue()
+    return img
+
+
+def make_tiles(img):
+    pngs = []
+    for i in range(NB):
+        tile = img.crop((i * W, 0, (i + 1) * W, GH))
+        buf = BytesIO()
+        tile.save(buf, format="PNG", optimize=False)
+        pngs.append(buf.getvalue())
+    return pngs
+
+
+async def connect_all():
+    sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
+    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    return sessions
+
+
+async def disconnect_all(sessions):
+    await asyncio.gather(
+        *[s.__aexit__(None, None, None) for s in sessions],
+        return_exceptions=True,
+    )
+
+
+async def send_all(sessions, pngs):
+    await asyncio.gather(*[
+        sessions[i].send_png(pngs[i], delay=0.0)
+        for i in range(NB)
+    ])
 
 
 async def fireworks_animation(
     duration=60.0,
     fps=20.0,
-    spawn_rate=3,    # fréquence de lancement (1–8)
+    spawn_rate=5,    # fréquence de lancement (1–8)
     nb_parts=16,     # particules par explosion (8–32)
     life_max=14,     # durée de vie des particules (8–24)
 ):
@@ -114,9 +151,11 @@ async def fireworks_animation(
     particles  = []
     delay      = 1.0 / fps
 
-    async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Feux d'artifice pendant {duration}s... (Echap pour arreter)")
-        t0 = asyncio.get_event_loop().time()
+    print("Connexion a %d panneaux..." % NB)
+    sessions = await connect_all()
+    print(f"Feux d'artifice pendant {duration}s... (Echap pour arreter)")
+    t0 = asyncio.get_event_loop().time()
+    try:
         while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
 
             # Lancement aléatoire de fusées
@@ -152,11 +191,13 @@ async def fireworks_animation(
                     alive.append(p)
             particles = alive
 
-            png = pixels_to_png(render(rockets, particles))
-            await session.send_png(png, delay=0.0)
+            pngs = make_tiles(pixels_to_img(render(rockets, particles)))
+            await send_all(sessions, pngs)
             await asyncio.sleep(delay)
 
         print("Animation terminée.")
+    finally:
+        await disconnect_all(sessions)
 
 
 listener = keyboard.Listener(on_press=on_press)
@@ -165,7 +206,7 @@ listener.start()
 asyncio.run(fireworks_animation(
     duration=60.0,
     fps=20.0,
-    spawn_rate=3,   # 1 rare → 8 continu
+    spawn_rate=5,   # 1 rare → 8 continu
     nb_parts=16,    # 8 discret → 32 dense
     life_max=14,    # 8 bref → 24 longue traîne
 ))

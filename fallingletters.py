@@ -7,11 +7,16 @@ from bk_light.display_session import BleDisplaySession
 # pip install pynput
 from pynput import keyboard
 
-MAC_LEFT  = "6F:E3:D9:1A:19:CA"
-MAC_RIGHT = "76:BF:38:1E:71:88"
+MAC_PANELS = [
+    "FF:50:05:B7:03:C6",
+    "2B:F4:CA:80:5D:A9",
+    "6F:E3:D9:1A:19:CA",
+    "76:BF:38:1E:71:88",
+]
 
 W, H = 32, 32
-TOTAL_W = W * 2  # 64 px de large sur 2 panneaux
+NB = len(MAC_PANELS)
+TOTAL_W = W * NB  # 128 px sur 4 panneaux
 TEXT = "ILARD HACKLAB"
 
 state = {"running": True}
@@ -194,6 +199,26 @@ def render_panel(grains, panel_index):
     return out.getvalue()
 
 
+async def connect_all():
+    sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
+    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    return sessions
+
+
+async def disconnect_all(sessions):
+    await asyncio.gather(
+        *[s.__aexit__(None, None, None) for s in sessions],
+        return_exceptions=True,
+    )
+
+
+async def send_all(sessions, grains):
+    await asyncio.gather(*[
+        sessions[i].send_png(render_panel(grains, i), delay=0.0)
+        for i in range(NB)
+    ])
+
+
 # ─────────────────────────────────────────────
 # ANIMATION PRINCIPALE
 # ─────────────────────────────────────────────
@@ -211,11 +236,11 @@ async def falling_text_animation(
     delay  = 1.0 / fps
     pause_counter = 0
 
-    async with BleDisplaySession(MAC_LEFT)  as sess_left, \
-               BleDisplaySession(MAC_RIGHT) as sess_right:
-
-        print(f"Texte tombant sur 2 panneaux — '{text}' (Echap pour arreter)")
-        t0 = asyncio.get_event_loop().time()
+    print("Connexion a %d panneaux..." % NB)
+    sessions = await connect_all()
+    print(f"Texte tombant sur {NB} panneaux — '{text}' (Echap pour arreter)")
+    t0 = asyncio.get_event_loop().time()
+    try:
         while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
 
             all_fallen = all(g["fallen"] for g in grains)
@@ -230,16 +255,12 @@ async def falling_text_animation(
             else:
                 step_grains(grains, grid, gravity)
 
-            png_left  = render_panel(grains, 0)
-            png_right = render_panel(grains, 1)
-
-            await asyncio.gather(
-                sess_left.send_png(png_left,   delay=0.0),
-                sess_right.send_png(png_right, delay=0.0),
-            )
+            await send_all(sessions, grains)
             await asyncio.sleep(delay)
 
         print("Animation terminée.")
+    finally:
+        await disconnect_all(sessions)
 
 
 listener = keyboard.Listener(on_press=on_press)
@@ -250,7 +271,7 @@ asyncio.run(falling_text_animation(
     fps=15.0,
     gravity=3.0,
     color_mode="cyan",    # "cyan" | "orange" | "green" | "rainbow"
-    text="ILARD HACKLAB",
+    text="GRAOULUG MAKERLAND 2026 METZ",
     pause_after=60,       # frames avant rechargement (~4s à 15fps)
 ))
 

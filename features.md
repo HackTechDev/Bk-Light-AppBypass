@@ -17,15 +17,15 @@
 | `mandelbrot4panels.py` | Zoom exponentiel sur l'ensemble de Mandelbrot. 3 cibles alternées. Palette sinusoïdale animée. Numpy/Python pur. |
 | `life4panels.py` | Jeu de la Vie de Conway sur 128×32. Réinitialisation auto après stagnation. |
 | `lifegame.py` | Jeu de la Vie (version simple, 1 panneau). |
-| `starfield.py` | Champ d'étoiles en warp speed : points qui convergent depuis le centre. |
-| `fire.py` | Simulation de feu : propagation de chaleur par automate cellulaire. |
-| `fallingletters.py` | Pluie de lettres style Matrix : colonnes vertes qui tombent avec traîne. |
-| `fireworks.py` | Feux d'artifice : fusées qui éclatent en particules colorées. |
-| `galaxy.py` | Galaxie spirale en rotation. |
-| `cube3d.py` | Cube 3D rotatif projeté en perspective sur les panneaux. |
-| `sandfall.py` | Simulation de sable : gravité cellulaire, grains qui s'accumulent. |
-| `waterfall.py` | Cascade : gouttes qui tombent et s'écoulent. |
-| `dropfall.py` | Chute de gouttes colorées. |
+| `starfield.py` | Champ d'étoiles en warp speed sur 128×32 : points qui convergent depuis le centre du canvas. |
+| `fire.py` | Simulation de feu sur 128×32 : propagation de chaleur par automate cellulaire, colonnes etendues sur les 4 panneaux. |
+| `fallingletters.py` | Texte qui tombe en grains de sable et se reforme sur 128×32 (4 panneaux), style Matrix. |
+| `fireworks.py` | Feux d'artifice sur 128×32 : fusées qui éclatent en particules colorées, plusieurs tirs simultanés. |
+| `galaxy.py` | Galaxie spirale en rotation, etirée sur 128×32 (ellipse aplatie pour occuper toute la largeur). |
+| `cube3d.py` | Cube 3D rotatif projeté en perspective, balayage horizontal continu sur les 4 panneaux. |
+| `sandfall.py` | Simulation de sable sur 128×32 : gravité cellulaire, grains qui s'accumulent sur toute la largeur. |
+| `waterfall.py` | Cascade sur 128×32 : gouttes qui tombent et s'écoulent sur les 4 panneaux. |
+| `dropfall.py` | Chute de gouttes colorées sur 128×32 (4 panneaux). |
 | `marquee4panels.py` | Texte défilant (marquee) sur les 4 panneaux. Paramétrable. |
 | `marquee_text4panels.py` | Marquee avec texte configurable : saisi au clavier au lancement, ou passé en argument (`python3 marquee_text4panels.py "MON TEXTE"`). |
 | `lorenz4panels.py` | Attracteur de Lorenz : traîne de 500 points colorée par vitesse (bleu=lent → cyan → blanc=rapide). Intégration RK4, projection XZ. Numpy/Python pur. |
