@@ -7,8 +7,17 @@ from bk_light.display_session import BleDisplaySession
 # pip install pynput
 from pynput import keyboard
 
-MAC_ADDRESS = "6F:E3:D9:1A:19:CA"
+MAC_PANELS = [
+    "FF:50:05:B7:03:C6",
+    "2B:F4:CA:80:5D:A9",
+    "6F:E3:D9:1A:19:CA",
+    "76:BF:38:1E:71:88",
+]
+
 W, H = 32, 32
+NB = len(MAC_PANELS)
+GW = W * NB   # 128 px
+GH = H        # 32 px
 
 state = {"running": True}
 
@@ -31,22 +40,22 @@ def step_rain(drops, splashes, intensity=4, speed=2, wind=0):
     # Spawn de nouvelles gouttes
     if random.random() * 10 < intensity:
         drops.append({
-            "x": random.uniform(0, W),
+            "x": random.uniform(0, GW),
             "y": 0.0,
             "len": random.randint(1, 3),
             "speed": speed + random.random() * 1.5,
         })
 
-    pixels = [(0, 0, 0)] * (W * H)
+    pixels = [(0, 0, 0)] * (GW * GH)
 
     # Déplacement des gouttes
     alive = []
     for d in drops:
         d["y"] += d["speed"] * 0.4
         d["x"] += wind * 0.15
-        d["x"] %= W
+        d["x"] %= GW
 
-        if d["y"] >= H:
+        if d["y"] >= GH:
             # Impact → splash
             splashes.append({"x": round(d["x"]), "life": 6})
         else:
@@ -55,9 +64,9 @@ def step_rain(drops, splashes, intensity=4, speed=2, wind=0):
             for i in range(d["len"] + 1):
                 py = int(d["y"]) - i
                 px = round(d["x"])
-                if 0 <= py < H and 0 <= px < W:
+                if 0 <= py < GH and 0 <= px < GW:
                     brightness = 255 * (1 - i / (d["len"] + 1))
-                    pixels[py * W + px] = rain_color(brightness)
+                    pixels[py * GW + px] = rain_color(brightness)
 
     drops[:] = alive
 
@@ -70,21 +79,49 @@ def step_rain(drops, splashes, intensity=4, speed=2, wind=0):
             col = splash_color(s["life"])
             spread = 6 - s["life"]
             for dx in [-spread, spread]:
-                px = (s["x"] + dx) % W
-                pixels[(H - 1) * W + px] = col
-            px_center = s["x"] % W        # ← % W ajouté ici
-            pixels[(H - 1) * W + px_center] = col
+                px = (s["x"] + dx) % GW
+                pixels[(GH - 1) * GW + px] = col
+            px_center = s["x"] % GW        # ← % GW ajouté ici
+            pixels[(GH - 1) * GW + px_center] = col
 
     splashes[:] = alive_splashes
 
     return pixels
 
-def pixels_to_png(pixels):
-    img = Image.new("RGB", (W, H))
+def pixels_to_img(pixels):
+    img = Image.new("RGB", (GW, GH))
     img.putdata(pixels)
-    out = BytesIO()
-    img.save(out, format="PNG", optimize=False)
-    return out.getvalue()
+    return img
+
+def make_tiles(img):
+    pngs = []
+    for i in range(NB):
+        tile = img.crop((i * W, 0, (i + 1) * W, GH))
+        buf = BytesIO()
+        tile.save(buf, format="PNG", optimize=False)
+        pngs.append(buf.getvalue())
+    return pngs
+
+
+async def connect_all():
+    sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
+    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    return sessions
+
+
+async def disconnect_all(sessions):
+    await asyncio.gather(
+        *[s.__aexit__(None, None, None) for s in sessions],
+        return_exceptions=True,
+    )
+
+
+async def send_all(sessions, pngs):
+    await asyncio.gather(*[
+        sessions[i].send_png(pngs[i], delay=0.0)
+        for i in range(NB)
+    ])
+
 
 async def rain_animation(
     duration=30.0,
@@ -97,15 +134,19 @@ async def rain_animation(
     splashes = []
     delay = 1.0 / fps
 
-    async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Pluie pendant {duration}s à {fps} FPS... (Echap pour arreter)")
-        t0 = asyncio.get_event_loop().time()
+    print("Connexion a %d panneaux..." % NB)
+    sessions = await connect_all()
+    print(f"Pluie pendant {duration}s à {fps} FPS... (Echap pour arreter)")
+    t0 = asyncio.get_event_loop().time()
+    try:
         while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
             pixels = step_rain(drops, splashes, intensity, speed, wind)
-            png = pixels_to_png(pixels)
-            await session.send_png(png, delay=0.0)
+            pngs = make_tiles(pixels_to_img(pixels))
+            await send_all(sessions, pngs)
             await asyncio.sleep(delay)
         print("Animation terminée.")
+    finally:
+        await disconnect_all(sessions)
 
 listener = keyboard.Listener(on_press=on_press)
 listener.start()

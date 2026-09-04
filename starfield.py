@@ -8,9 +8,18 @@ from bk_light.display_session import BleDisplaySession
 # pip install pynput
 from pynput import keyboard
 
-MAC_ADDRESS = "76:BF:38:1E:71:88"
+MAC_PANELS = [
+    "FF:50:05:B7:03:C6",
+    "2B:F4:CA:80:5D:A9",
+    "6F:E3:D9:1A:19:CA",
+    "76:BF:38:1E:71:88",
+]
+
 W, H = 32, 32
-CX, CY = W / 2.0, H / 2.0
+NB = len(MAC_PANELS)
+GW = W * NB   # 128 px
+GH = H        # 32 px
+CX, CY = GW / 2.0, GH / 2.0
 
 state = {"running": True}
 
@@ -33,9 +42,9 @@ def make_star():
 
 def set_pixel(pixels, x, y, r, g, b, alpha=1.0):
     x, y = int(round(x)), int(round(y))
-    if not (0 <= x < W and 0 <= y < H):
+    if not (0 <= x < GW and 0 <= y < GH):
         return
-    idx = y * W + x
+    idx = y * GW + x
     pr, pg, pb = pixels[idx]
     pixels[idx] = (
         min(255, pr + int(r * alpha)),
@@ -45,7 +54,7 @@ def set_pixel(pixels, x, y, r, g, b, alpha=1.0):
 
 
 def render_stars(stars):
-    pixels = [(0, 0, 0)] * (W * H)
+    pixels = [(0, 0, 0)] * (GW * GH)
 
     for s in stars:
         x = CX + math.cos(s["angle"]) * s["dist"]
@@ -67,27 +76,57 @@ def render_stars(stars):
     return pixels
 
 
-def pixels_to_png(pixels):
-    img = Image.new("RGB", (W, H))
+def pixels_to_img(pixels):
+    img = Image.new("RGB", (GW, GH))
     img.putdata(pixels)
-    out = BytesIO()
-    img.save(out, format="PNG", optimize=False)
-    return out.getvalue()
+    return img
+
+
+def make_tiles(img):
+    pngs = []
+    for i in range(NB):
+        tile = img.crop((i * W, 0, (i + 1) * W, GH))
+        buf = BytesIO()
+        tile.save(buf, format="PNG", optimize=False)
+        pngs.append(buf.getvalue())
+    return pngs
+
+
+async def connect_all():
+    sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
+    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    return sessions
+
+
+async def disconnect_all(sessions):
+    await asyncio.gather(
+        *[s.__aexit__(None, None, None) for s in sessions],
+        return_exceptions=True,
+    )
+
+
+async def send_all(sessions, pngs):
+    await asyncio.gather(*[
+        sessions[i].send_png(pngs[i], delay=0.0)
+        for i in range(NB)
+    ])
 
 
 async def starwars_animation(
     duration=60.0,
     fps=20.0,
-    nb_stars=40,     # nombre d'étoiles (20–80)
+    nb_stars=100,    # nombre d'étoiles (40–200)
     speed=4.0,       # vitesse d'expansion (1–10)
     trail_len=4,     # longueur de la traîne (1–10)
 ):
     stars = [make_star() for _ in range(nb_stars)]
     delay = 1.0 / fps
 
-    async with BleDisplaySession(MAC_ADDRESS) as session:
-        print(f"Hyperespace pendant {duration}s... (Echap pour arreter)")
-        t0 = asyncio.get_event_loop().time()
+    print("Connexion a %d panneaux..." % NB)
+    sessions = await connect_all()
+    print(f"Hyperespace pendant {duration}s... (Echap pour arreter)")
+    t0 = asyncio.get_event_loop().time()
+    try:
         while state["running"] and asyncio.get_event_loop().time() - t0 < duration:
 
             # Mise à jour de chaque étoile
@@ -98,7 +137,7 @@ async def starwars_animation(
                 y = CY + math.sin(s["angle"]) * s["dist"]
 
                 # Hors panneau → on réinitialise l'étoile au centre
-                if not (0 <= x < W and 0 <= y < H):
+                if not (0 <= x < GW and 0 <= y < GH):
                     s["dist"]       = random.uniform(0.1, 1.0)
                     s["angle"]      = random.uniform(0, math.pi * 2)
                     s["brightness"] = random.uniform(0.5, 1.0)
@@ -111,10 +150,13 @@ async def starwars_animation(
                     s["trail"].pop(0)
 
             pixels = render_stars(stars)
-            await session.send_png(pixels_to_png(pixels), delay=0.0)
+            pngs = make_tiles(pixels_to_img(pixels))
+            await send_all(sessions, pngs)
             await asyncio.sleep(delay)
 
         print("Animation terminée.")
+    finally:
+        await disconnect_all(sessions)
 
 
 listener = keyboard.Listener(on_press=on_press)
@@ -123,7 +165,7 @@ listener.start()
 asyncio.run(starwars_animation(
     duration=60.0,
     fps=20.0,
-    nb_stars=40,   # densité : 20 épars → 80 champ dense
+    nb_stars=100,  # densité : 40 épars → 200 champ dense
     speed=4.0,     # vitesse : 1 lente → 10 hyperespace max
     trail_len=4,   # traîne : 1 point → 10 longues lignes
 ))
