@@ -1,4 +1,10 @@
 bleak
 Pillow
 PyYAML
+numpy
+pynput
+pyaudio
+pydub
+audioop-lts; python_version >= "3.13"
+websockets
 
