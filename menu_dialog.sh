@@ -49,6 +49,7 @@ EFFETS=(
     "waterfall.py|Cascade|Gouttes qui tombent et s'ecoulent|"
     "dropfall.py|Gouttes|Chute de gouttes colorees|"
     "marquee4panels.py|Marquee|Texte defilant sur les 4 panneaux|"
+    "marquee_text4panels.py|Marquee texte|Texte defilant, saisi au clavier au lancement|Entree apres saisie du texte   Echap: quitter"
 )
 
 SON=(
