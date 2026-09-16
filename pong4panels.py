@@ -10,9 +10,9 @@ from pynput import keyboard
 # Panneaux de gauche a droite
 MAC_PANELS = [
     "FF:50:05:B7:03:C6",  # panneau 0 - gauche
-    "2B:F4:CA:80:5D:A9",  # panneau 1
-    "6F:E3:D9:1A:19:CA",  # panneau 2
-    "76:BF:38:1E:71:88",  # panneau 3 - droite
+    "6F:E3:D9:1A:19:CA",  # panneau 1
+    "76:BF:38:1E:71:88",  # panneau 2
+    "2B:F4:CA:80:5D:A9",  # panneau 3 - droite
 ]
 
 W, H = 32, 32

@@ -18,9 +18,9 @@ DUREE=30
 
 MAC_PANELS=(
     "FF:50:05:B7:03:C6"
-    "2B:F4:CA:80:5D:A9"
     "6F:E3:D9:1A:19:CA"
     "76:BF:38:1E:71:88"
+    "2B:F4:CA:80:5D:A9"
 )
 
 # Les 14 demos "Effets visuels" du menu, dans l'ordre (1 a 14).

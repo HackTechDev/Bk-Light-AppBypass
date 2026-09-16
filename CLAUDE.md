@@ -9,9 +9,9 @@ Projet de contrôle de panneaux LED 32×32 pixels via Bluetooth BLE (protocole r
 | Position | Adresse MAC |
 |---|---|
 | Panneau 0 — gauche | `FF:50:05:B7:03:C6` |
-| Panneau 1 | `2B:F4:CA:80:5D:A9` |
-| Panneau 2 | `6F:E3:D9:1A:19:CA` |
-| Panneau 3 — droite | `76:BF:38:1E:71:88` |
+| Panneau 1 | `6F:E3:D9:1A:19:CA` |
+| Panneau 2 | `76:BF:38:1E:71:88` |
+| Panneau 3 — droite | `2B:F4:CA:80:5D:A9` |
 
 Canvas total : **128×32 px** (4 × 32×32 px).
 
@@ -49,9 +49,9 @@ from pynput import keyboard
 
 MAC_PANELS = [
     "FF:50:05:B7:03:C6",
-    "2B:F4:CA:80:5D:A9",
     "6F:E3:D9:1A:19:CA",
     "76:BF:38:1E:71:88",
+    "2B:F4:CA:80:5D:A9",
 ]
 W, H, NB = 32, 32, 4
 GW, GH = W * NB, H  # 128 x 32
