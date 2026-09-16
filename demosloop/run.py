@@ -51,13 +51,15 @@ EFFECTS = [
     ("Marquee", marquee),
 ]
 
-state = {"running": True}
+state = {"running": True, "skip": False}
 
 
 def on_press(key):
     if key == keyboard.Key.esc:
         state["running"] = False
         return False
+    if key == keyboard.Key.space:
+        state["skip"] = True
 
 
 async def connect_all():
@@ -95,7 +97,7 @@ async def run_loop():
     sessions = await connect_all()
     print("demosloop -- %d demos Effets visuels, %.0fs chacune, enchainement sans reconnexion" % (
         len(EFFECTS), DUREE))
-    print("Echap pour arreter.\n")
+    print("Echap pour arreter, Espace pour passer a la demo suivante.\n")
 
     try:
         while state["running"]:
@@ -103,10 +105,11 @@ async def run_loop():
                 if not state["running"]:
                     break
                 print("=== %s (%.0fs) ===" % (name, DUREE))
+                state["skip"] = False
                 effect_state = effect.init_state()
                 delay = 1.0 / effect.FPS
                 t_end = time.monotonic() + DUREE
-                while state["running"] and time.monotonic() < t_end:
+                while state["running"] and not state["skip"] and time.monotonic() < t_end:
                     img = effect.render(effect_state)
                     pngs = make_tiles(img)
                     await send_all(sessions, pngs)
