@@ -1,9 +1,7 @@
 <div align="center">
 
-[![Python](https://img.shields.io/badge/Python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
+[![Python](https://img.shields.io/badge/Python-3.12+-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://www.linux.org/)
-[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)](https://www.apple.com/macos/)
 [![BLE](https://img.shields.io/badge/BLE-4.0+-0082FC?logo=bluetooth&logoColor=white)](https://www.bluetooth.com/)
 [![Bleak](https://img.shields.io/badge/Bleak-BLE%20client-3776AB)](https://github.com/hbldh/bleak)
 [![Pillow](https://img.shields.io/badge/Pillow-Imaging-3776AB)](https://python-pillow.org/)
@@ -11,232 +9,106 @@
 
 </div>
 
-# BLE LED Display Toolkit
+# Bk-Light AppBypass — 4 panneaux LED
 
-Utilities for driving BK-Light RGB LED matrices over Bluetooth Low Energy (command sequence from device logs). **Supported panels:** 32×32 (ACT1026) and 64×16 (ACT1025). Set `panels.tile_width` and `panels.tile_height` in `config.yaml` to match your panel; the BLE handshake supports both variants automatically.
+Fork de toolkit BLE pour panneaux LED BK-Light, configure pour piloter **4 panneaux 32x32 px alignes horizontalement** (canvas total **128x32 px**), avec une trentaine de demos et jeux, deux menus de lancement (curses et dialog/whiptail), et un enchainement automatique fluide.
 
-Everything is now configurable through `config.yaml`, so you can define presets, multi-panel layouts, and runtime modes without touching code.
+## Configuration materielle
 
-## Requirements
+| Position | Adresse MAC |
+|---|---|
+| Panneau 0 - gauche | `FF:50:05:B7:03:C6` |
+| Panneau 1 | `6F:E3:D9:1A:19:CA` |
+| Panneau 2 | `76:BF:38:1E:71:88` |
+| Panneau 3 - droite | `2B:F4:CA:80:5D:A9` |
 
-- Python 3.13+
-- `pip install bleak Pillow PyYAML`
-- Bluetooth adapter with BLE support enabled
-- Hardware capabilities:
-  - BLE 4.0 or newer with GATT/ATT support
-  - Central role / GATT client mode
-  - LE 1M PHY
-  - Long ATT write support (Prepare/Execute or Write-with-response handling for fragmented payloads)
-  - MTU negotiation and L2CAP fragmentation
+Les adresses sont codees en dur dans chaque demo (`MAC_PANELS`, voir `CLAUDE.md`). Si vous changez de panneaux ou d'ordre de cablage, utilisez `calibrage.py` pour identifier quelle adresse correspond a quelle position physique.
 
-The tools assume the screen advertises as `LED_BLE_*` (BK-Light firmware). Update the MAC address in `config.yaml` (or via `BK_LIGHT_ADDRESS`) if your unit differs. For **64×16 (ACT1025)** panels use `tile_width: 64` and `tile_height: 16`; for **32×32 (ACT1026)** the default `tile_width: 32`, `tile_height: 32` is correct.
+## Installation
 
-## Acknowledgment (Windows / Python 3.13)
-
-If you see `ModuleNotFoundError: No module named 'bleak'` or `ModuleNotFoundError: No module named 'PIL'` after `pip install -r requirements.txt`, or a **LNK1104** / failed wheel build for `winrt-Windows.Devices.Bluetooth.GenericAttributeProfile`, you are likely using the **free-threaded** Python 3.13 build (`python3.13t`). Bleak’s Windows dependencies (winrt) do not ship pre-built wheels for that variant, so pip tries to compile them and the build often fails.
-
-Use the **standard** Python 3.13 (not the “t” build) for this project. Example:
-
-```powershell
-py -3.13 -m pip install -r requirements.txt
-py -3.13 .\scripts\production.py
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
 ```
 
-If `py -3.13` is not available, install the non–free-threaded Python 3.13 from [python.org](https://www.python.org/downloads/) and use that interpreter for install and run.
+Dependances principales : `bleak`, `Pillow`, `PyYAML`, `numpy`, `pynput` (controle clavier), `pyaudio`/`pydub` (VU-metre audio), `websockets`.
 
-## Project Structure
+## Lancer les demos
 
-- `config.yaml` – device defaults, multi-panel layout, presets, runtime mode.
-- `config.py` – loader/validators for the configuration tree.
-- `panel_manager.py` – orchestrates single/multi-panel sessions and image slicing.
-- `display_session.py` – BLE transport: handshake, ACK tracking, brightness/rotation, auto-reconnect.
-- `production.py` – production entrypoint that reads `config.yaml` and runs the selected mode/preset.
-- Toolkit scripts (still usable standalone):
-  - `clock_display.py`
-  - `display_text.py`
-  - `send_image.py`
-  - `increment_counter.py`
-  - `identify_panels.py`
-- Legacy smoke tests: `bootstrap_demo.py`, `red_corners.py`.
+Trois facons de lancer les demos :
 
-## Quick Start
-
-1. Install dependencies:
+1. **Menu curses** (terminal simple, sans dependance externe) :
 
    ```bash
-   pip install bleak Pillow PyYAML
+   python3 menu.py
    ```
 
-2. Edit `config.yaml`.
+   Fleches pour naviguer, Entree pour lancer, `q`/Echap pour quitter le menu.
 
-   - Single panel (32×32 default):
-
-     ```yaml
-     device:
-       address: "F0:27:3C:1A:8B:C3"
-     panels:
-       list: ["F0:27:3C:1A:8B:C3"]
-     display:
-       antialias_text: true  # set to false for crisp bitmap text
-     ```
-
-   - Single 64×16 panel (ACT1025):
-
-     ```yaml
-     panels:
-       tile_width: 64
-       tile_height: 16
-       list: ["F0:27:3C:1A:8B:C3"]
-     ```
-
-   - Fonts:
-
-     Place `.ttf` / `.otf` files under `assets/fonts/` and reference them by name (extension optional):
-
-     ```yaml
-     presets:
-       clock:
-         default:
-           font: "Aldo PC"     # resolves to assets/fonts/Aldo PC.ttf
-           size: 22
-     ```
-
-   - Multi-panel:
-
-     ```yaml
-     panels:
-       tile_width: 32
-       tile_height: 32
-       layout:
-         columns: 2
-         rows: 1
-       list:
-         - name: left
-           address: "F0:27:3C:1A:8B:C3"
-           grid_x: 0
-           grid_y: 0
-         - name: right
-           address: "F0:27:3C:1A:8B:C4"
-           grid_x: 1
-           grid_y: 0
-     ```
-
-     For 64×16 panels use `tile_width: 64`, `tile_height: 16`. A bare MAC string is accepted; defaults are inferred.
-
-3. Pick the runtime mode and preset:
-
-   ```yaml
-   runtime:
-     mode: clock
-     preset: default
-     options:
-       timezone: "Europe/Paris"
-   ```
-
-   Other examples:
-
-   ```yaml
-   runtime:
-     mode: text
-     preset: marquee_left
-     options:
-       text: "WELCOME"
-       color: "#00FFAA"
-       background: "#000000"
-
-   runtime:
-     mode: image
-     preset: signage
-     options:
-       image: "assets/promo.png"
-
-   runtime:
-     mode: counter
-     preset: default
-     options:
-       start: 100
-       count: 50
-       delay: 0.5
-   ```
-
-4. Launch the production entrypoint:
+2. **Menu TUI dialog/whiptail** (necessite `dialog` ou `whiptail`) :
 
    ```bash
-   python scripts/production.py
+   ./menu_dialog.sh
    ```
 
-   Override anything ad hoc:
+   Menu a deux niveaux (categorie -> demo), utilise `dialog` si installe sinon bascule automatiquement sur `whiptail`.
+
+3. **Demo isolee** :
 
    ```bash
-   python scripts/production.py --mode text --text "HELLO" --option color=#00FFAA
+   python3 metaballs4panels.py
    ```
 
-5. Need to identify MAC ↔ panel placement or force a clean BLE reset? Run:
+Chaque demo interactive s'arrete proprement sur la touche **Echap** (retour au menu appelant, deconnexion BLE propre). Voir `features.md` pour la liste complete des demos et leurs controles.
 
-   ```bash
-   python scripts/identify_panels.py
-   ```
+## Enchainement automatique des demos
 
-   (Each panel displays its index and then disconnects cleanly.)
+Deux scripts font tourner en boucle les 14 demos "Effets visuels" du menu (30 secondes chacune) :
 
-## Toolkit Scripts
-
-- `scripts/clock_display.py` – async HH:MM clock (supports 12/24h, dot flashing, themes). Exit with `Ctrl+C` so the BLE session closes cleanly and you can relaunch immediately.
-- `scripts/display_text.py` – renders text using presets (colour/background/font/spacing) or marquee scrolls.
-
-  Example scroll preset in `config.yaml`:
-
-  ```yaml
-  text:
-    marquee_left:
-      mode: scroll
-      direction: left
-      speed: 30.0
-      step: 3          # pixels moved per frame
-      gap: 32
-      size: 18
-      spacing: 2
-      offset_y: 0
-      interval: 0.04
-  ```
-
-  Launch:
+- **`demos_loop.sh`** — relance un processus Python par demo, avec reconnexion BLE a chaque changement (petit trou de quelques secondes, mais isole les plantages eventuels d'une demo).
 
   ```bash
-  python scripts/display_text.py "HELLO" --preset marquee_left
+  ./demos_loop.sh
   ```
 
-- `scripts/send_image.py` – uploads any image with fit/cover/scale + rotate/mirror/invert.
-- `scripts/increment_counter.py` – numeric animation for diagnostics.
-- `scripts/identify_panels.py` – flashes digits on each configured panel.
-- `scripts/list_fonts.py`
-
-  Prints the fonts resolved from `assets/fonts/`. Bundled names and defaults:
-  - `Aldo PC`
-  - `Dolce Vita Light`
-  - `Kenyan Coffee Rg`
-  - `Kimberley Bl`
+- **`demos_loop_v2.sh`** — connexion BLE persistante partagee par toutes les demos, enchainement **fluide sans reconnexion**. Moteur dans `demosloop/` (modules `render()` sans etat BLE + un seul orchestrateur `demosloop/run.py`).
 
   ```bash
-  python scripts/list_fonts.py [--config config.yaml]
+  ./demos_loop_v2.sh
   ```
 
-Each script honours `--config`, `--address`, and preset overrides so you can reuse the same YAML in development or production.
+  Controles : **Echap** arrete l'enchainement, **Espace** passe immediatement a la demo suivante.
 
-## Building New Effects
+## Structure du projet
 
-Use Pillow to draw onto a canvas sized to `columns × rows` tiles, then:
-
-```python
-async with PanelManager(load_config()) as manager:
-    await manager.send_image(image)
+```
+bk_light/            # Librairie BLE centrale (session, manager, config, fonts, texte)
+scripts/              # Utilitaires (scan, horloge, texte, image, identification panneaux...)
+demosloop/            # Moteur d'enchainement fluide (effets sans etat + orchestrateur)
+assets/               # Polices TTF/OTF, images
+*.py                  # Demos et jeux a la racine
+config.yaml           # Configuration principale (adresses, presets)
+menu.py               # Menu de lancement (curses)
+menu_dialog.sh         # Menu de lancement (dialog/whiptail)
+demos_loop.sh          # Enchainement automatique (reconnexion a chaque demo)
+demos_loop_v2.sh       # Enchainement automatique fluide (connexion persistante)
+calibrage.py           # Identifie un panneau physique a partir de son adresse MAC
 ```
 
-`PanelManager` slices the image per tile and `BleDisplaySession` handles BLE writes/ACKs for each panel automatically. Sessions will auto-reconnect if a panel restarts (tunable via `reconnect_delay` / `max_retries` / `scan_timeout`).
+## Documentation complementaire
+
+- `CLAUDE.md` — conventions de code et pattern de reference pour ecrire une nouvelle demo 4 panneaux.
+- `features.md` — liste complete des demos et jeux implementes, avec leurs controles.
+- `improvements.md` — idees de demos a implementer.
+- `tutorial.md` — adresses MAC des 4 panneaux.
+
+## Ecrire une nouvelle demo
+
+Voir le pattern type dans `CLAUDE.md` : connexions BLE en parallele (`asyncio.gather`), canvas Pillow 128x32 decoupe en 4 tuiles de 32x32, controle clavier via `pynput` (`keyboard.Listener`, pattern `state` dict + `on_press`). `PanelManager` (dans `bk_light/panel_manager.py`) peut aussi etre utilise directement avec `config.yaml` pour des layouts generiques (nombre de panneaux, disposition en grille).
 
 ## Attribution & License
 
-- Created by Puparia — GitHub: [Pupariaa](<https://github.com/Pupariaa>).
-- Code is open-source and contributions are welcome; open a pull request with improvements or new effects.
-- If you reuse this toolkit (or derivatives) in your own projects, credit “Puparia / <https://github.com/Pupariaa>” and link back to the original repository.
-- Licensed under the [MIT License](./LICENSE).
+- Fork base sur le toolkit BLE de Puparia — GitHub : [Pupariaa](https://github.com/Pupariaa).
+- Code open-source, contributions bienvenues.
+- Licence [MIT](./LICENSE).
