@@ -19,6 +19,9 @@ ACK_STAGE_TWO_ALT = bytes.fromhex("08 00 05 80 0E 03 07 01")  # ACT1025 64x16 va
 ACK_STAGE_THREE = bytes.fromhex("05 00 02 00 03")
 FRAME_VALIDATION = bytes.fromhex("05 00 00 01 00")
 
+# BlueZ refuses concurrent discovery sessions (org.bluez.Error.InProgress), so scans are serialized.
+_SCAN_LOCK = asyncio.Lock()
+
 
 def bytes_to_hex(data: bytes) -> str:
     return "-".join(f"{value:02X}" for value in data)
@@ -142,23 +145,24 @@ class BleDisplaySession:
                     return
                 if self.client:
                     await self._safe_disconnect()
-                try:
-                    device = await BleakScanner.find_device_by_address(
-                        self.address, timeout=self.scan_timeout, cached=False
-                    )
-                except TypeError:
-                    device = await BleakScanner.find_device_by_address(
-                        self.address, timeout=self.scan_timeout
-                    )
-                if device is None:
+                async with _SCAN_LOCK:
                     try:
                         device = await BleakScanner.find_device_by_address(
-                            self.address, timeout=self.scan_timeout, cached=True
+                            self.address, timeout=self.scan_timeout, cached=False
                         )
                     except TypeError:
                         device = await BleakScanner.find_device_by_address(
                             self.address, timeout=self.scan_timeout
                         )
+                    if device is None:
+                        try:
+                            device = await BleakScanner.find_device_by_address(
+                                self.address, timeout=self.scan_timeout, cached=True
+                            )
+                        except TypeError:
+                            device = await BleakScanner.find_device_by_address(
+                                self.address, timeout=self.scan_timeout
+                            )
                 if device is None:
                     raise BleakError(f"Device with address {self.address} was not found")
                 self.client = BleakClient(device)

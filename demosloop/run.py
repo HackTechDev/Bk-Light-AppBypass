@@ -122,6 +122,9 @@ async def run_loop():
 listener = keyboard.Listener(on_press=on_press)
 listener.start()
 
-asyncio.run(run_loop())
+try:
+    asyncio.run(run_loop())
+except KeyboardInterrupt:
+    pass
 
 listener.stop()
