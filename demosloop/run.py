@@ -64,7 +64,14 @@ def on_press(key):
 
 async def connect_all():
     sessions = [BleDisplaySession(mac) for mac in MAC_PANELS]
-    await asyncio.gather(*[s.__aenter__() for s in sessions])
+    results = await asyncio.gather(
+        *[s.__aenter__() for s in sessions],
+        return_exceptions=True,
+    )
+    for i, result in enumerate(results):
+        if isinstance(result, Exception):
+            print("Panneau %d (%s) : connexion echouee (%s), nouvelle tentative a l'envoi" % (
+                i, MAC_PANELS[i], type(result).__name__))
     return sessions
 
 
@@ -86,10 +93,16 @@ def make_tiles(img):
 
 
 async def send_all(sessions, pngs):
-    await asyncio.gather(*[
-        sessions[i].send_png(pngs[i], delay=0.0)
-        for i in range(NB)
-    ])
+    results = await asyncio.gather(
+        *[sessions[i].send_png(pngs[i], delay=0.0) for i in range(NB)],
+        return_exceptions=True,
+    )
+    for i, result in enumerate(results):
+        if isinstance(result, asyncio.CancelledError):
+            raise result
+        if isinstance(result, Exception):
+            print("Panneau %d (%s) : envoi echoue (%s: %s), on continue" % (
+                i, MAC_PANELS[i], type(result).__name__, result))
 
 
 async def run_loop():
