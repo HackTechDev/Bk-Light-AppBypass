@@ -5,7 +5,7 @@ from demosloop.common import GW, GH
 
 FPS = 20.0
 SPEED = 2
-TEXT = "ILARD HACKLAB GRAOULUG"
+TEXT = "GRAOULUG - MAKERLAND 2026 - BLIIIDA - METZ"
 COLOR = (0, 200, 255)
 BACKGROUND = (0, 0, 0)
 FONT_NAME = "aldopc"
