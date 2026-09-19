@@ -127,6 +127,8 @@ async def run_loop():
                     pngs = make_tiles(img)
                     await send_all(sessions, pngs)
                     await asyncio.sleep(delay)
+                if state["skip"]:
+                    print("Espace : demo suivante")
     finally:
         await disconnect_all(sessions)
         print("Deconnecte.")
